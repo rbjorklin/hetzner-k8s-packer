@@ -26,5 +26,6 @@ License
 This project uses the 0BSD_ license.
 ``SPDX-License-Identifier: 0BSD``
 
+.. _0BSD: https://spdx.org/licenses/0BSD.html
 .. _cluster-api-provider-hetzner: https://github.com/syself/cluster-api-provider-hetzner
 .. _here: https://github.com/syself/cluster-api-provider-hetzner/tree/e7b7a8233b1ac97abd1f689d17ad29dbc4ffc4c6/templates/node-image/1.23.4-fedora-35-crio/scripts
