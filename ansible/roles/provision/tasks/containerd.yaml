@@ -1,0 +1,98 @@
+---
+- name: Ensure cri-o kernel module config present
+  ansible.builtin.copy:
+    dest: /etc/modules-load.d/crio.conf
+    content: |
+      overlay
+      br_netfilter
+
+- name: Ensure kernel modules loaded
+  ansible.builtin.command:
+    cmd: "modprobe {{ item }}"
+  loop:
+  - overlay
+  - br_netfilter
+
+- name: Ensure kernel parameters loaded
+  ansible.builtin.command:
+    cmd: sysctl --system
+
+- name: Ensure containerd config folder exists
+  ansible.builtin.file:
+    path: /etc/containerd
+    state: directory
+
+- name: Ensure containerd config present
+  ansible.builtin.copy:
+    dest: /etc/containerd/config.toml
+    content: |
+      version = 2
+      [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runc]
+        runtime_type = "io.containerd.runc.v2"
+      [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runc.options]
+        SystemdCgroup = true
+      [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.crun]
+        runtime_type = "io.containerd.runc.v2"
+      [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.crun.options]
+        BinaryName = "crun"
+        Root = "/usr/local/sbin"
+        SystemdCgroup = true
+      [plugins."io.containerd.grpc.v1.cri".containerd]
+        default_runtime_name = "crun"
+      [plugins."io.containerd.runtime.v1.linux"]
+        runtime = "crun"
+        runtime_root = "/usr/local/sbin"
+
+- name: Ensure nerdctl installed
+  ansible.builtin.unarchive:
+    src: "https://github.com/containerd/nerdctl/releases/download/v{{ nerdctl_version}}/nerdctl-{{ nerdctl_version }}-linux-amd64.tar.gz"
+    dest: /usr/local/bin
+    creates: /usr/local/bin/nerdctl
+    remote_src: true
+
+- name: Ensure runc installed
+  ansible.builtin.get_url:
+    url: "https://github.com/opencontainers/runc/releases/download/{{ runc_version }}/runc.amd64"
+    dest: /usr/local/sbin/runc
+    mode: '0755'
+
+- name: Ensure crun installed
+  ansible.builtin.get_url:
+    url: "https://github.com/containers/crun/releases/download/{{ crun_version }}/crun-{{ crun_version }}-linux-amd64"
+    dest: /usr/local/sbin/crun
+    mode: '0755'
+
+- name: Ensure containerd installed
+  ansible.builtin.unarchive:
+    src: "https://github.com/containerd/containerd/releases/download/v{{ containerd_version }}/containerd-{{ containerd_version }}-linux-amd64.tar.gz"
+    dest: /usr/local/bin
+    creates: /usr/local/bin/containerd
+    extra_opts:
+    - --strip-components=1
+    mode: '0755'
+    remote_src: true
+
+- name: Ensure containerd service folder exists
+  ansible.builtin.file:
+    path: /usr/local/lib/systemd/system
+    state: directory
+
+- name: Ensure containerd service file present
+  ansible.builtin.get_url:
+    url: "https://raw.githubusercontent.com/containerd/containerd/v{{ containerd_version }}/containerd.service"
+    dest: /usr/local/lib/systemd/system/containerd.service
+    mode: '0644'
+
+- name: Ensure containerd service enabled
+  ansible.builtin.systemd:
+    name: containerd
+    daemon_reload: true
+    state: started
+    enabled: true
+
+- name: Ensure root has nerdctl configured for debugging purposes
+  ansible.builtin.blockinfile:
+    path: "~/.bashrc"
+    marker: "### {mark} ANSIBLE MANAGED BLOCK FOR CONTAINERD ###"
+    block: |
+      alias nerdctl="nerdctl --namespace k8s.io"

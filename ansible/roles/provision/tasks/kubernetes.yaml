@@ -1,0 +1,68 @@
+---
+- name: Ensure Kubernetes repo configured
+  ansible.builtin.yum_repository:
+    name: kubernetes
+    description: Kubernetes
+    baseurl: https://packages.cloud.google.com/yum/repos/kubernetes-el7-x86_64
+    enabled: true
+    gpgcheck: true
+    repo_gpgcheck: true
+    gpgkey:
+    - https://packages.cloud.google.com/yum/doc/yum-key.gpg
+    - https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg
+
+- name: Ensure Kubernetes dependencies installed
+  ansible.builtin.dnf:
+    name:
+    - python3-dnf-plugin-versionlock
+    - bash-completion
+
+- name: Ensure Kubernetes installed
+  ansible.builtin.command:
+    cmd: "dnf install --disableexcludes=kubernetes --setopt=obsoletes=0 -y kubelet-0:{{ kubernetes_version }}-0 kubeadm-0:{{ kubernetes_version }}-0 kubectl-0:{{ kubernetes_version }}-0"
+
+- name: Ensure Kubernetes version locked
+  ansible.builtin.command:
+    cmd: dnf versionlock kubelet kubectl kubeadm
+
+- name: Ensure kubelet enabled at boot
+  ansible.builtin.systemd:
+    name: kubelet
+    state: stopped
+    enabled: true
+
+- name: Ensure Kubernetes-cri kernel module config present
+  ansible.builtin.copy:
+    dest: /etc/sysctl.d/99-kubernetes-cri.conf
+    content: |
+      net.bridge.bridge-nf-call-iptables  = 1
+      net.bridge.bridge-nf-call-ip6tables = 1
+      net.ipv4.ip_forward                 = 1
+
+- name: Ensure Kubernetes-kubelet kernel module config present
+  ansible.builtin.copy:
+    dest: /etc/sysctl.d/99-kubelet.conf
+    content: |
+      vm.overcommit_memory=1
+      kernel.panic=10
+      kernel.panic_on_oops=1
+
+- name: Ensure Kubernetes resolv.conf configured
+  ansible.builtin.copy:
+    dest: /etc/kubernetes/resolv.conf
+    content: |
+      nameserver 1.1.1.1
+      nameserver 1.0.0.1
+      nameserver 2606:4700:4700::1111
+
+- name: Ensure kubeadm images pulled
+  ansible.builtin.command:
+    cmd: "kubeadm config images pull --kubernetes-version {{ kubernetes_version }}"
+
+- name: Ensure root has kubectl configured for debugging purposes
+  ansible.builtin.blockinfile:
+    path: "~/.bashrc"
+    marker: "### {mark} ANSIBLE MANAGED BLOCK ###"
+    block: |
+      source <(kubectl completion bash)
+      export KUBECONFIG=/etc/kubernetes/admin.conf

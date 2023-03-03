@@ -1,0 +1,82 @@
+---
+- name: Ensure locale LANG configured
+  ansible.builtin.command:
+    cmd: localectl set-locale LANG=en_US.UTF-8
+
+- name: Ensure locale LANGUAGE configured
+  ansible.builtin.command:
+    cmd: localectl set-locale LANGUAGE=en_US.UTF-8
+
+- name: Ensure all system packages are up-to-date
+  ansible.builtin.dnf:
+    name: "*"
+    state: latest
+
+- name: Ensure base tools installed
+  ansible.builtin.dnf:
+    name:
+    - at
+    - jq
+    - unzip
+    - curl
+    - socat
+    - mtr
+    - logrotate
+    - vim
+    state: present
+
+- name: Ensure yq installed
+  ansible.builtin.get_url:
+    url: "https://github.com/mikefarah/yq/releases/download/{{ yq_version }}/yq_linux_amd64"
+    dest: /usr/local/bin/yq
+    mode: '0755'
+
+- name: Ensure swap disabled
+  ansible.builtin.command:
+    cmd: swapoff -a
+
+- name: Ensure swap disabled on reboot
+  ansible.builtin.lineinfile:
+    dest: /etc/fstab
+    regexp: swap
+    state: absent
+
+- name: Ensure systemd does not autodetect swap
+  ansible.builtin.systemd:
+    name: dev-zram0.swap
+    masked: true
+
+# Content from: https://github.com/kubernetes/kubernetes/blob/master/cluster/gce/gci/configure-helper.sh#L509
+- name: Ensure logrotate /var/log configured
+  ansible.builtin.copy:
+    dest: /etc/logrotate.d/allvarlogs
+    content: |
+      /var/log/*.log {
+          rotate 5
+          copytruncate
+          missingok
+          notifempty
+          compress
+          maxsize 25M
+          daily
+          dateext
+          dateformat -%Y%m%d-%s
+          create 0644 root root
+      }
+
+- name: Ensure logrotate /var/log/pods configured
+  ansible.builtin.copy:
+    dest: /etc/logrotate.d/allpodlogs
+    content: |
+      /var/log/pods/*/*.log {
+          rotate 3
+          copytruncate
+          missingok
+          notifempty
+          compress
+          maxsize 5M
+          daily
+          dateext
+          dateformat -%Y%m%d-%s
+          create 0644 root root
+      }

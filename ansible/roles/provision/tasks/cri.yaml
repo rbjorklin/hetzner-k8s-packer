@@ -1,0 +1,141 @@
+---
+- name: Ensure cri-o kernel module config present
+  ansible.builtin.copy:
+    dest: /etc/modules-load.d/crio.conf
+    content: |
+      overlay
+      br_netfilter
+
+- name: Ensure kernel modules loaded
+  ansible.builtin.command:
+    cmd: "modprobe {{ item }}"
+  loop:
+  - overlay
+  - br_netfilter
+
+- name: Ensure kernel parameters loaded
+  ansible.builtin.command:
+    cmd: sysctl --system
+
+- name: Ensure runc installed
+  ansible.builtin.get_url:
+    url: "https://github.com/opencontainers/runc/releases/download/{{ runc_version }}/runc.amd64"
+    dest: /usr/local/sbin/runc
+    mode: '0755'
+
+- name: Ensure crun installed
+  ansible.builtin.get_url:
+    url: "https://github.com/containers/crun/releases/download/{{ crun_version }}/crun-{{ crun_version }}-linux-amd64"
+    dest: /usr/local/sbin/crun
+    mode: '0755'
+
+- name: Ensure conmon installed
+  ansible.builtin.get_url:
+    url: "https://github.com/containers/conmon/releases/download/{{ conmon_version }}/conmon.amd64"
+    dest: /usr/local/bin/conmon
+    mode: '0755'
+
+- name: Ensure crictl installed
+  ansible.builtin.unarchive:
+    src: "https://github.com/kubernetes-sigs/cri-tools/releases/download/{{ cri_tools_version }}/crictl-{{ cri_tools_version }}-linux-amd64.tar.gz"
+    dest: /usr/local/bin
+    creates: /usr/local/bin/crictl
+    remote_src: true
+
+# https://github.com/cri-o/cri-o/blob/main/install.md#fedora-31-or-later
+- name: Ensure cri-o repo enabled
+  ansible.builtin.command:
+    cmd: "dnf -y module enable cri-o:{{ crio_version }}"
+
+- name: Ensure cri-o installed
+  ansible.builtin.dnf:
+    name: cri-o
+
+- name: Ensure crio config folder exists
+  ansible.builtin.file:
+    path: /etc/crio/crio.conf.d
+    state: directory
+
+# https://github.com/cri-o/cri-o/blob/master/docs/crio.conf.5.md
+- name: Ensure crio config present
+  ansible.builtin.copy:
+    dest: /etc/crio/crio.conf.d/02-cgroup-manager.conf
+    content: |
+      [crio.runtime]
+      default_runtime = "crun"
+      conmon = "/usr/local/bin/conmon"
+      conmon_env = [
+          "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+      ]
+      selinux = false
+      seccomp_profile = ""
+      apparmor_profile = "crio-default"
+      default_capabilities = [
+          "CHOWN",
+          "DAC_OVERRIDE",
+          "FSETID",
+          "FOWNER",
+          "SETGID",
+          "SETUID",
+          "SETPCAP",
+          "NET_BIND_SERVICE",
+          "KILL",
+          "MKNOD",
+      ]
+      
+      [crio.runtime.runtimes.runc]
+      runtime_path = ""
+      runtime_type = "oci"
+      runtime_root = "/run/runc"
+      
+      [crio.runtime.runtimes.crun]
+      runtime_path = "/usr/local/sbin/crun"
+      runtime_type = "oci"
+      runtime_root = "/run/crun"
+
+#Registries
+# https://github.com/containers/image/blob/master/docs/containers-registries.conf.5.md
+
+# Policy for CRI-O
+# https://github.com/containers/image/blob/master/docs/containers-policy.json.5.md
+
+# Storage Configuartion for CRI-O
+# https://github.com/containers/storage/blob/master/docs/containers-storage.conf.5.md
+
+- name: Ensure crio started
+  ansible.builtin.systemd:
+    name: crio
+    daemon_reload: true
+    state: started
+    enabled: true
+
+- name: Test if cgroup v2 is enabled
+  ansible.builtin.command:
+    cmd: stat -c %T -f /sys/fs/cgroup
+  register: is_cgroupv2
+
+- name: Debug cgroup v2 status
+  debug:
+    var: is_cgroupv2
+    verbosity: 1
+
+- name: Ensure cgroup v2 is enabled
+  ansible.builtin.fail:
+    msg: The system is not running with cgroup2fs enabled
+  when: is_cgroupv2.stdout != "cgroup2fs"
+
+- name: Test if correct cgroup controllers are enabled
+  ansible.builtin.command:
+    cmd: cat /sys/fs/cgroup/cgroup.controllers
+  register: cgroup_controllers
+
+- name: Debug cgroup v2 controller status
+  debug:
+    var: cgroup_controllers
+    verbosity: 1
+
+- name: Ensure correct cgroup controllers are enabled
+  ansible.builtin.fail:
+    msg: The system is not running with the correct cgroup controllers eanbled
+  # TODO: Why is the 'rdma' cgroup controller missing? Can it be enabled?
+  when: cgroup_controllers.stdout != "cpuset cpu io memory hugetlb pids misc"

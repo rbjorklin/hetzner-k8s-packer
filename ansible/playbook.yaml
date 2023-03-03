@@ -1,0 +1,13 @@
+
+---
+
+- name: Provision Hetzner image
+  hosts: all
+  become: true
+  become_flags: '--preserve-env=SSH_AUTH_SOCK'
+  environment:
+    #SSH_AUTH_SOCK: "{{ ssh_auth_sock }}"
+    SSH_AUTH_SOCK: /run/user/1000/keyring/ssh
+  tasks:
+  - import_role:
+      name: provision

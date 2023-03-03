@@ -1,0 +1,26 @@
+---
+- name: Selinux
+  include_tasks: selinux.yaml
+
+- name: Base
+  include_tasks: base.yaml
+
+- name: Cilium
+  include_tasks: cilium.yaml
+
+- name: CRI
+  include_tasks: cri.yaml
+  when: container_runtime == "crio"
+
+- name: Containerd
+  include_tasks: containerd.yaml
+  when: container_runtime == "containerd"
+
+- name: Kubernetes
+  include_tasks: kubernetes.yaml
+
+#- name: Internal Network
+#  include_tasks: internal-network.yaml
+
+- name: Cleanup
+  include_tasks: cleanup.yaml

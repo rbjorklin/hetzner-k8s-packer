@@ -1,0 +1,32 @@
+---
+- name: Ensure ssh host keys have been located
+  ansible.builtin.find:
+    paths: /etc/ssh
+    patterns: ssh_host_*
+  register: host_ssh_keys
+
+- name: Ensure ssh host keys have been deleted
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: absent
+  loop: "{{ host_ssh_keys.files }}"
+
+- name: Ensure swap disabled
+  ansible.builtin.lineinfile:
+    dest: /etc/fstab
+    regexp: swap
+    state: absent
+
+# Remove Firewalld - cilium Host Firewall is used instead
+- name: Ensure firewalld is uninstalled
+  ansible.builtin.dnf:
+    name: firewalld
+    state: absent
+
+- name: Ensure unneeded packages have been removed
+  ansible.builtin.dnf:
+    autoremove: yes
+
+- name: Ensure package information has been removed
+  ansible.builtin.command:
+    cmd: dnf -y clean all

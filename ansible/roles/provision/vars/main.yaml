@@ -1,0 +1,28 @@
+---
+
+container_runtime: containerd
+
+### base.yaml task ###
+#
+yq_version: v4.30.8
+
+### cri.yaml task ###
+#
+runc_version: v1.1.4   # https://github.com/opencontainers/runc/releases
+crun_version: "1.8"    # https://github.com/containers/crun/releases
+conmon_version: v2.1.6 # https://github.com/containers/conmon/releases
+nerdctl_version: 1.2.0 # https://github.com/containerd/nerdctl/releases
+#
+## Remember to check CRI-O Configuration updates when updating CRI-O
+crio_version: "1.25"       # https://github.com/cri-o/cri-o/releases and https://github.com/cri-o/cri-o/blob/main/install.md#fedora-31-or-later
+cri_tools_version: v1.25.0 # https://github.com/kubernetes-sigs/cri-tools/releases
+
+### containerd.yaml task ###
+
+containerd_version: 1.6.18 # https://github.com/containerd/containerd/tags
+
+### kubernetes.yaml task ###
+#
+# https://github.com/kubernetes/kubernetes/releases
+# Must be same as cri-o
+kubernetes_version: 1.25.6 # https://kubernetes.io/releases/#release-history

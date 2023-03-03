@@ -1,0 +1,9 @@
+---
+# /sys/fs/bpf is mounted by default as of systemd v238: https://github.com/systemd/systemd/blob/v238/NEWS
+# https://docs.cilium.io/en/v1.13/network/kubernetes/configuration/#bpffs-systemd
+
+- name: Ensure Cilium 1.9 kernel config requirements met
+  ansible.builtin.copy:
+    dest: /etc/sysctl.d/99-cilium.conf
+    content: |
+      net.ipv4.conf.lxc*.rp_filter = 0

@@ -1,0 +1,11 @@
+---
+- name: Ensure selinux is not enforcing
+  ansible.builtin.command:
+    cmd: setenforce 0
+
+- name: Ensure selinux disabled on boot
+  ansible.builtin.lineinfile:
+    dest: /etc/selinux/config
+    # TODO: Check if this line may start with a leading #
+    regexp: "^SELINUX="
+    line: SELINUX=disabled
