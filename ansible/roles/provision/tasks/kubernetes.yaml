@@ -47,6 +47,12 @@
       kernel.panic=10
       kernel.panic_on_oops=1
 
+- name: Ensure Kubernetes container runtime selected
+  ansible.builtin.copy:
+    dest: /etc/sysconfig/kubelet
+    content: |
+      KUBELET_EXTRA_ARGS=--container-runtime=remote --container-runtime-endpoint=unix:///run/containerd/containerd.sock
+
 - name: Ensure Kubernetes resolv.conf configured
   ansible.builtin.copy:
     dest: /etc/kubernetes/resolv.conf
