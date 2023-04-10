@@ -32,7 +32,7 @@ variable "location" {
 
 variable "server_type" {
     type = string
-    default = "cpx21"
+    default = "cpx11"
 }
 
 locals {
