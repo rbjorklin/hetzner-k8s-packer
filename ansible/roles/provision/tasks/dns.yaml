@@ -1,0 +1,12 @@
+---
+- name: Ensure resolved.conf.d config folder exists
+  ansible.builtin.file:
+    path: /etc/systemd/resolved.conf.d
+    state: directory
+
+- name: Ensure using Hetzner DNS servers
+  ansible.builtin.copy:
+    dest: /etc/systemd/resolved.conf.d/dns.conf
+    content: |
+      [Resolve]
+      DNS=185.12.64.2 185.12.64.1

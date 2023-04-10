@@ -5,6 +5,9 @@
 - name: Base
   include_tasks: base.yaml
 
+- name: DNS
+  include_tasks: dns.yaml
+
 - name: Cilium
   include_tasks: cilium.yaml
 
