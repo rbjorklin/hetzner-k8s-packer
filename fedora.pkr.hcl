@@ -12,7 +12,7 @@ variable "hcloud_ssh_key" {
 
 variable "k8s_version" {
   type    = string
-  default = "1.25.6"
+  default = "1.26.3"
 }
 
 variable "container_runtime" {
